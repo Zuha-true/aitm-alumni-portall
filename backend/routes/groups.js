@@ -54,7 +54,7 @@ router.post('/:id/join', protect, async (req, res) => {
 
     const populatedGroup = await Group.findById(group._id)
       .populate('creator', 'name')
-      .populate('members', 'name');
+      .populate('members', 'name email');
 
     res.json(populatedGroup);
   } catch (error) {

@@ -8,12 +8,10 @@ router.post('/conversation', protect, async (req, res) => {
   try {
     const { recipientId } = req.body;
     
-    // Find existing conversation
     let conversation = await DirectMessage.findOne({
       participants: { $all: [req.user.id, recipientId] }
     }).populate('participants', 'name role');
 
-    // Create new conversation if doesn't exist
     if (!conversation) {
       conversation = await DirectMessage.create({
         participants: [req.user.id, recipientId]
@@ -56,7 +54,6 @@ router.get('/:conversationId/messages', protect, async (req, res) => {
       return res.status(404).json({ message: 'Conversation not found' });
     }
 
-    // Check if user is participant
     if (!conversation.participants.includes(req.user.id)) {
       return res.status(403).json({ message: 'Not authorized' });
     }
@@ -77,7 +74,6 @@ router.post('/:conversationId/messages', protect, async (req, res) => {
       return res.status(404).json({ message: 'Conversation not found' });
     }
 
-    // Check if user is participant
     if (!conversation.participants.includes(req.user.id)) {
       return res.status(403).json({ message: 'Not authorized' });
     }
@@ -94,6 +90,39 @@ router.post('/:conversationId/messages', protect, async (req, res) => {
       .populate('messages.sender', 'name');
 
     res.json(populatedConversation.messages);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete message
+router.delete('/:conversationId/messages/:messageId', protect, async (req, res) => {
+  try {
+    const conversation = await DirectMessage.findById(req.params.conversationId);
+
+    if (!conversation) {
+      return res.status(404).json({ message: 'Conversation not found' });
+    }
+
+    if (!conversation.participants.includes(req.user.id)) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    const message = conversation.messages.id(req.params.messageId);
+    
+    if (!message) {
+      return res.status(404).json({ message: 'Message not found' });
+    }
+
+    if (message.sender.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'You can only delete your own messages' });
+    }
+
+    message.remove();
+    await conversation.save();
+
+    res.json({ message: 'Message deleted' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });

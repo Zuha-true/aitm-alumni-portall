@@ -92,4 +92,28 @@ router.get('/saved/me', protect, authorize('student'), async (req, res) => {
   }
 });
 
+// @route   DELETE /api/internships/:id
+// @desc    Delete internship (Alumni only - can delete their own)
+// @access  Private (Alumni only)
+router.delete('/:id', protect, authorize('alumni'), async (req, res) => {
+  try {
+    const internship = await Internship.findById(req.params.id);
+
+    if (!internship) {
+      return res.status(404).json({ message: 'Internship not found' });
+    }
+
+    // Check if user is the one who posted it
+    if (internship.posted_by.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'You can only delete your own internships' });
+    }
+
+    await internship.deleteOne();
+    res.json({ message: 'Internship deleted successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router;
